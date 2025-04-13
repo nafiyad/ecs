@@ -45,18 +45,20 @@ pipeline {
         stage('Build My Docker Image') {
             agent {
                 docker {
-                    image 'amazon/aws-cli'
+                    image 'docker:20'
                     reuseNode true
-                    args '-u root -v /var/run/docker.sock:/var/run/docker.sock --entrypoint=""'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
             steps {
                 withCredentials([usernamePassword(credentialsId: 'final_project', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
                     sh '''
-                        amazon-linux-extras install docker -y
-                        service docker start
+                        # Install AWS CLI
+                        apk add --no-cache aws-cli
+                        
+                        # Build and push Docker image
                         docker build -t $AWS_DOCKER_REGISTRY/$APP_NAME .
-                        aws ecr get-login-password | docker login --username AWS --password-stdin $AWS_DOCKER_REGISTRY
+                        aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_DOCKER_REGISTRY
                         docker push $AWS_DOCKER_REGISTRY/$APP_NAME:latest
                     '''
                 }
