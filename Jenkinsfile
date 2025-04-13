@@ -46,18 +46,18 @@ pipeline {
         stage('Build My Docker Image'){
             agent {
                 docker {
-                    image 'amazon/aws-cli'
+                    image 'docker:dind'
                     reuseNode true
-                    args '-u root -v /var/run/docker.sock:/var/run/docker.sock --entrypoint=""'
+                    args '-u root -v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
             steps{
                  withCredentials([usernamePassword(credentialsId: 'final_project', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) 
                 { 
                     sh '''
-                        amazon-linux-extras install docker
+                        apk add --no-cache aws-cli
                         docker build -t $AWS_DOCKER_REGISTRY/$APP_NAME .
-                        aws ecr get-login-password | docker login --username AWS --password-stdin $AWS_DOCKER_REGISTRY
+                        aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_DOCKER_REGISTRY
                         docker push $AWS_DOCKER_REGISTRY/$APP_NAME:latest
                     '''
                 }
@@ -66,21 +66,20 @@ pipeline {
         stage('Deploy to AWS') {
             agent {
                 docker {
-                    image 'amazon/aws-cli'
+                    image 'amazon/aws-cli:2.0.43'
                     reuseNode true
-                    args '-u root --entrypoint=""'
                 }
             }
             
             steps {
-                withCredentials([usernamePassword(credentialsId: 'my-s3-key', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) 
+                withCredentials([usernamePassword(credentialsId: 'final_project', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) 
                 {   
                     sh '''
                         aws --version
-                        yum install jq -y
+                        # Amazon Linux 2 comes with jq pre-installed
                         
                         LATEST_TD_REVISION=$(aws ecs register-task-definition --cli-input-json file://aws/task-definition.json | jq '.taskDefinition.revision')
-                        aws ecs update-service --cluster my-new-Cluster-Prod --service my-new-Service-Prod --task-definition my-new-TaskDefinition-Prod:$LATEST_TD_REVISION
+                        aws ecs update-service --cluster final-project-Cluster-Prod --service final-project-Service-Prod --task-definition final-project-TaskDefinition-Prod:$LATEST_TD_REVISION
                     '''
                 }
             }
