@@ -3,6 +3,7 @@ pipeline {
     environment {
         AWS_DEFAULT_REGION = 'us-east-2'
         AWS_DOCKER_REGISTRY = '679907953987.dkr.ecr.us-east-2.amazonaws.com'
+        // your ECR repository name
         APP_NAME = 'my-react-app-image'
     }
 
@@ -19,7 +20,7 @@ pipeline {
                     ls -la 
                     node --version
                     npm --version
-                    npm ci
+                    npm install
                     npm run build
                     ls -la 
                 '''
